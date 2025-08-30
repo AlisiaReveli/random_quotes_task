@@ -7,6 +7,7 @@ import { authenticate } from './guards/auth.guard'
 import { quoteRoutes } from './modules/quotes/quote.route'
 import { quoteSchemas } from './modules/quotes/quote.schema'
 import { SchedulerService } from './jobs/scheduler.service'
+import { checkGuessCooldown } from './guards/cooldown.guard'
 
 
 const app = Fastify({ logger: true })
@@ -25,6 +26,7 @@ app.addHook('preHandler', (req, res, next) => {
 })
 
 app.decorate('authenticate', authenticate)
+app.decorate('checkGuessCooldown', checkGuessCooldown)
 
 // routes
 app.register(userRoutes, { prefix: 'api/users' })

@@ -43,6 +43,7 @@ export async function createUser(
 				password: hash,
 				email,
 				name,
+				right_guessed_authors: {},
 			},
 		})
 

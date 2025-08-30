@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { getQuotes } from './quote.controller'
+import { getQuotes, guessAuthor } from './quote.controller'
 import { $ref } from './quote.schema'
 
 export async function quoteRoutes(app: FastifyInstance) {
@@ -12,6 +12,17 @@ export async function quoteRoutes(app: FastifyInstance) {
         }
       },
       getQuotes
+    )
+    app.post(
+      '/guess',
+      {
+        preHandler: [app.authenticate, app.checkGuessCooldown],
+        schema: {
+          body: $ref('guessBodySchema'),
+          response: { 200: $ref('guessResponseSchema') }
+        }
+      },
+      guessAuthor
     )
     app.log.info('Quotes routes registered')
   }

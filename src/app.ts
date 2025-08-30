@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify'
 import { userRoutes } from './modules/user/user.route'
 import fjwt, { FastifyJWT } from '@fastify/jwt'

@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import axios from 'axios'
 import { PrismaClient } from '@prisma/client'
+import { SyncResult } from '../utils/types'
 
 const prisma = new PrismaClient()
 
@@ -19,20 +20,23 @@ interface ExternalQuotesResponse {
 
 export class SchedulerService {
   private isRunning = false
+  private currentRun: Promise<SyncResult> | null = null
 
   constructor() {
     this.startQuoteSyncJob()
   }
 
-  private startQuoteSyncJob() {
-    // Run every hour to sync quotes from external API
-    cron.schedule('0 * * * *', async () => {
-      console.log('Starting quote sync job...')
-      await this.syncQuotesFromExternalAPI()
-    })
+  public async syncNow(): Promise<SyncResult> {
+    if (this.currentRun) return this.currentRun
+    this.currentRun = this.syncQuotesFromExternalAPI().finally(() => {
+      this.currentRun = null
+    }) as Promise<SyncResult>
+    return this.currentRun
+  }
 
-    // Also run immediately on startup
-    this.syncQuotesFromExternalAPI()
+   private startQuoteSyncJob() {
+    cron.schedule('0 * * * *', async () => { await this.syncNow() })
+    this.syncNow()
   }
 
   private async syncQuotesFromExternalAPI() {
@@ -56,7 +60,6 @@ export class SchedulerService {
       const batchSize = 50
       let processedCount = 0
       let createdCount = 0
-      let updatedCount = 0
 
       for (let i = 0; i < externalQuotes.length; i += batchSize) {
         const batch = externalQuotes.slice(i, i + batchSize)
@@ -66,7 +69,7 @@ export class SchedulerService {
             const upserted = await prisma.quote.upsert({
               where: { id: q.id },
               update: { content: q.quote, author: q.author, updatedAt: new Date() },
-              create: { id: q.id, content: q.quote, author: q.author, createdAt:new Date()}
+              create: { id: q.id, content: q.quote, author: q.author, createdAt: new Date() }
             })
             return upserted
           })
@@ -83,11 +86,15 @@ export class SchedulerService {
       }
 
       console.log(`Quote sync completed ✅ Processed: ${processedCount}, New added to existing quotes: ${createdCount}`)
+      return { processedCount, createdCount }
 
     } catch (error) {
       console.error('Error syncing quotes from external API:', error)
+      return { processedCount: 0, createdCount: 0 }
     } finally {
       this.isRunning = false
     }
   }
+
+
 }

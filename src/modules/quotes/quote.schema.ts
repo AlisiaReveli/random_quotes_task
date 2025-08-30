@@ -1,14 +1,10 @@
 import { z } from 'zod'
 import { buildJsonSchemas } from 'fastify-zod'
 
-const quoteQuerySchema = z.object({
-    limit: z.preprocess(
-      (val) => val ? parseInt(val as string, 1) : 1,
-      z.number().min(1).max(1).default(1)
-    )
-  })
-
-export type QuoteInput = z.infer<typeof quoteQuerySchema>
+export enum Prioritize {
+  wrong = 'wrong',
+  correct = 'correct',
+}
 
 const guessBodySchema = z.object({
   quoteId: z.number().int().min(1),
@@ -23,11 +19,17 @@ const guessResponseSchema = z.object({
 
 export type GuessInput = z.infer<typeof guessBodySchema>
 
+const nextQuoteQuerySchema = z.object({
+  prioritize: z.nativeEnum(Prioritize).default(Prioritize.wrong),
+})
+
+export type NextQuoteQuery = z.infer<typeof nextQuoteQuerySchema>
+
 
 export const { schemas: quoteSchemas, $ref } = buildJsonSchemas({
-  quoteQuerySchema,
   guessBodySchema,
   guessResponseSchema,
+  nextQuoteQuerySchema,
 }, {
     $id: 'QuoteSchemas' 
   })

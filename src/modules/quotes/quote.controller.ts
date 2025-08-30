@@ -1,75 +1,64 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
-import axios from 'axios'
-import { QuoteInput, GuessInput } from './quote.schema'
+import { GuessInput } from './quote.schema'
 import prisma from '../../utils/prisma'
 import redis from '../../utils/redis'
-import { COOLDOWN_SECONDS, normalize } from '../../utils/common_methods'
+import { COOLDOWN_SECONDS, normalize, notFoundUserCheck } from '../../utils/common_methods'
+import { Prioritize, NextQuoteQuery } from './quote.schema'
 
-interface Quote {
-  id: string
-  content: string
-  author: string
-  tags?: string[]
-  length?: number
+export async function getNextQuote(
+  req: FastifyRequest<{ Querystring: NextQuoteQuery }>,
+  reply: FastifyReply
+) {
+  notFoundUserCheck(req, reply)
+  const query = req.query as NextQuoteQuery
+  const prioritize = query.prioritize ?? Prioritize.wrong
+  const userId = Number(req.user?.id)
+  //Result tweaked to make the user choose if they want difficult options or easier ones
+  const order = prioritize === 'correct'
+    ? { guessed_correct: 'desc' as const }
+    : { guessed_false: 'desc' as const }
+const where = {
+  OR: [
+    { attempts: { none: { userId } } },
+    { attempts: { some: { userId, correct: false } } },
+  ],
 }
+    const count = await prisma.quote.count({
+      where: where
+    });
 
-interface QuotesResponse {
-  quotes: Quote[]
-  total: number
-  skip: number
-  limit: number
-}
+    // Generate random skip value
+    const skip = Math.floor(Math.random() * count);
 
-export async function getQuotes(req: FastifyRequest<{
-  Querystring: QuoteInput
-}>, reply: FastifyReply) {
-  try {
-    const { limit } = req.query;
-
-    const response = await axios.get<QuotesResponse>(
-      `https://dummyjson.com/quotes?limit=${limit}`,
-      { timeout: 5000 }
-    )
-
-    console.log(response.data)
-    const quotesData = response.data
-
-    return reply.code(200).send({
-      success: true,
-      data: quotesData
+    const findNext = () => prisma.quote.findFirst({
+      where: where,
+      orderBy: order,
+      skip: skip,
+      select: { id: true, content: true },
     })
-
-  } catch (error: any) {
-    req.log.error('Failed to fetch quotes:', error)
-
-    return reply.code(500).send({
-      success: false,
-      error: error.message || 'Unknown error'
-    })
+    let next = await findNext()
+  if (!next){
+    const res = await req.server.syncQuotes()
+    if (res.createdCount > 0) next = await findNext()
+    if (!next) return reply.code(404).send({ message: 'We ran out of quotes, try again tomorrow' })
   }
+
+  return reply.code(200).send({ data: next })
 }
-
-
 
 export async function guessAuthor(
   req: FastifyRequest<{ Body: GuessInput }>,
   reply: FastifyReply
 ) {
   try {
+    notFoundUserCheck(req, reply)
     const { quoteId, authorGuess } = req.body
-
     const userId = Number(req.user?.id)
-    if (!Number.isFinite(userId)) {
-      return reply.code(401).send({ message: 'Invalid user' })
-    }
-
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
       select: { id: true, author: true },
     })
-    if (!quote) {
-      return reply.code(404).send({ message: 'Quote not found' })
-    }
+    if (!quote) return reply.code(404).send({ message: 'Quote not found' })
 
     const isCorrect = normalize(quote.author) === normalize(authorGuess)
 
@@ -79,17 +68,13 @@ export async function guessAuthor(
           where: { id: userId },
           select: { right_guessed_authors: true },
         })
-
         const stats = (current?.right_guessed_authors as Record<string, number> | null) || {}
         const author = quote.author
         stats[author] = (stats[author] || 0) + 1
 
         const user = await tx.user.update({
           where: { id: userId },
-          data: {
-            score: { increment: 1 },
-            right_guessed_authors: stats,
-          },
+          data: { score: { increment: 1 }, right_guessed_authors: stats },
           select: { score: true },
         })
 
@@ -99,14 +84,16 @@ export async function guessAuthor(
           select: { id: true },
         })
 
+        await tx.userQuoteAttempt.upsert({
+          where: { userId_quoteId: { userId, quoteId } },
+          update: { correct: true },
+          create: { userId, quoteId, correct: true },
+        })
+
         return user
       })
 
-      return reply.code(200).send({
-        correct: true,
-        message: 'Correct answer',
-        newScore: updatedUser.score,
-      })
+      return reply.code(200).send({ correct: true, message: 'Correct answer', newScore: updatedUser.score })
     }
 
     await prisma.quote.update({
@@ -114,12 +101,14 @@ export async function guessAuthor(
       data: { guessed_false: { increment: 1 } },
       select: { id: true },
     })
+    await prisma.userQuoteAttempt.upsert({
+      where: { userId_quoteId: { userId, quoteId } },
+      update: { correct: false },
+      create: { userId, quoteId, correct: false },
+    })
     await redis.set(`${userId}:failed_attempt`, new Date().toISOString(), { EX: COOLDOWN_SECONDS })
 
-    return reply.code(200).send({
-      correct: false,
-      message: 'Wrong answer, try again tomorrow',
-    })
+    return reply.code(200).send({ correct: false, message: 'Wrong answer, try again tomorrow' })
   } catch (e: any) {
     req.log.error('Failed to process guess:', e)
     return reply.code(500).send({ message: e.message || 'Unknown error' })

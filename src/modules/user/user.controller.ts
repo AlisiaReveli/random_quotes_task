@@ -62,7 +62,11 @@ export async function login(
 ) {
 	const { email, password } = req.body
 	const user = await prisma.user.findUnique({ where: { email: email } })
-
+	if(!user){
+	return reply.code(401).send({
+		message: 'This email is not registered',
+	})
+}
 	const isMatch = user && (await bcrypt.compare(password, user.password))
 	if (!user || !isMatch) {
 		return reply.code(401).send({

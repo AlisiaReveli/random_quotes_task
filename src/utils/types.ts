@@ -7,6 +7,7 @@ declare module 'fastify' {
 	export interface FastifyInstance {
 		authenticate: any
 		checkGuessCooldown: any
+		syncQuotes: () => Promise<{ processedCount: number; createdCount: number; }>
 	}
 }
 
@@ -20,3 +21,5 @@ declare module '@fastify/jwt' {
 		user: UserPayload
 	}
 }
+
+export type SyncResult = { processedCount: number; createdCount: number }

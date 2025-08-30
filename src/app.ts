@@ -1,7 +1,7 @@
 import 'dotenv/config'
-import Fastify, { FastifyReply, FastifyRequest } from 'fastify'
+import Fastify, { FastifyInstance } from 'fastify'
 import { userRoutes } from './modules/user/user.route'
-import fjwt, { FastifyJWT } from '@fastify/jwt'
+import fjwt from '@fastify/jwt'
 import { userSchemas } from './modules/user/user.schema'
 import { authenticate } from './guards/auth.guard'
 import { quoteRoutes } from './modules/quotes/quote.route'
@@ -27,7 +27,10 @@ app.addHook('preHandler', (req, res, next) => {
 
 app.decorate('authenticate', authenticate)
 app.decorate('checkGuessCooldown', checkGuessCooldown)
-
+app.decorate('syncQuotes', async function (this: FastifyInstance) {
+	if (schedulerService) return await schedulerService.syncNow()
+	return { processedCount: 0, createdCount: 0 }
+})
 // routes
 app.register(userRoutes, { prefix: 'api/users' })
 app.register(quoteRoutes, { prefix: 'api/quotes' })

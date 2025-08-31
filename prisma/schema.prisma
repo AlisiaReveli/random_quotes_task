@@ -8,38 +8,37 @@ datasource db {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  name      String?
-  password  String
-  score     Int        @default(0)
+  id                    Int                @id @default(autoincrement())
+  email                 String             @unique
+  name                  String?
+  password              String
+  score                 Int                @default(0)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  email_sent            Boolean            @default(false)
   right_guessed_authors Json?
-  email_sent Boolean   @default(false)
-  attempts UserQuoteAttempt[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  attempts              UserQuoteAttempt[]
 }
 
 model Quote {
-  id        Int      @id // same as external API id
-  content   String
-  author    String
-  guessed_correct   Int        @default(0)
-  guessed_false     Int        @default(0)
-  attempts  UserQuoteAttempt[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int                @id
+  content         String
+  author          String
+  guessed_correct Int                @default(0)
+  guessed_false   Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  attempts        UserQuoteAttempt[]
 }
 
 model UserQuoteAttempt {
-  id        Int        @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    Int
   quoteId   Int
   correct   Boolean
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-  quote Quote @relation(fields: [quoteId], references: [id])
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, quoteId], name: "userId_quoteId")
 }

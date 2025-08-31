@@ -4,7 +4,20 @@ import prisma from '../../utils/prisma'
 import redis from '../../utils/redis'
 import { COOLDOWN_SECONDS, normalize, notFoundUserCheck } from '../../utils/common_methods'
 import { Prioritize, NextQuoteQuery } from './quote.schema'
+import { sendDiscountEmail } from '../../utils/email'
+type AuthorStats = {
+  count: number
+  email_sent: boolean
+}
 
+type GuessTxResult = {
+  user: { score: number }
+  newCount: number
+  email: string | null
+  author: string
+  email_sent_for_author: boolean,
+  authorStats: Record<string, AuthorStats>
+}
 export async function getNextQuote(
   req: FastifyRequest<{ Querystring: NextQuoteQuery }>,
   reply: FastifyReply
@@ -51,7 +64,7 @@ export async function guessAuthor(
   reply: FastifyReply
 ) {
   try {
-    notFoundUserCheck(req, reply)
+    await notFoundUserCheck(req, reply)
     const { quoteId, authorGuess } = req.body
     const userId = Number(req.user?.id)
     const quote = await prisma.quote.findUnique({
@@ -63,18 +76,26 @@ export async function guessAuthor(
     const isCorrect = normalize(quote.author) === normalize(authorGuess)
 
     if (isCorrect) {
-      const updatedUser = await prisma.$transaction(async (tx) => {
+      const { user: updatedUser, newCount, email, author, email_sent_for_author,authorStats } = await prisma.$transaction(async (tx): Promise<GuessTxResult> => {
         const current = await tx.user.findUnique({
           where: { id: userId },
-          select: { right_guessed_authors: true },
+          select: { right_guessed_authors: true, email: true },
         })
-        const stats = (current?.right_guessed_authors as Record<string, number> | null) || {}
+        const authorStats = (current?.right_guessed_authors as Record<string, AuthorStats> | null) || {}
         const author = quote.author
-        stats[author] = (stats[author] || 0) + 1
+        
+        if (!authorStats[author]) {
+          authorStats[author] = { count: 0, email_sent: false }
+        }
+        
+        authorStats[author].count += 1
+        const newCount = authorStats[author].count
+        const email = current?.email || null
+        const email_sent_for_author = authorStats[author].email_sent
 
         const user = await tx.user.update({
           where: { id: userId },
-          data: { score: { increment: 1 }, right_guessed_authors: stats },
+          data: { score: { increment: 1 }, right_guessed_authors: authorStats },
           select: { score: true },
         })
 
@@ -90,8 +111,22 @@ export async function guessAuthor(
           create: { userId, quoteId, correct: true },
         })
 
-        return user
+        return { user, newCount, email, author, email_sent_for_author,authorStats }
       })
+
+      if (newCount >= 10 && email && !email_sent_for_author) {
+        try {
+          await sendDiscountEmail(email, author)
+          authorStats[author].email_sent = true
+          await prisma.user.update({
+            where: { id: userId },
+            data: { right_guessed_authors: authorStats },
+            select: { id: true },
+          })
+        } catch (e: any) {
+          req.log.error('Failed to send discount email', e )
+        }
+      }
 
       return reply.code(200).send({ correct: true, message: 'Correct answer', newScore: updatedUser.score })
     }

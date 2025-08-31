@@ -31,7 +31,8 @@ export const redisUtils = {
    */
   async get(key: string): Promise<string | null> {
     await init()
-    return await redis.get(key)
+    const result = await redis.get(key)
+    return result ? String(result) : null
   },
 
   /**
@@ -41,7 +42,8 @@ export const redisUtils = {
    */
   async del(key: string): Promise<number> {
     await init() 
-    return await redis.del(key)
+    const result = await redis.del(key)
+    return Number(result)
   },
 
   /**
@@ -72,7 +74,8 @@ export const redisUtils = {
    */
   async mget(keys: string[]): Promise<(string | null)[]> {
     await init() 
-    return await redis.mGet(keys)
+    const results = await redis.mGet(keys)
+    return results.map(result => result ? String(result) : null)
   },
 
   /**

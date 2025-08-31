@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify"
-import prisma from "./prisma"
-import { createResponse } from "./response"
+import prisma from "../utils/prisma"
+import { createResponse } from "./response.service"
 
 export const COOLDOWN_SECONDS = Number(process.env.COOLDOWN_TIME) || 60 * 60 * 12
 export const normalize = (s: string) => s.trim().toLowerCase()

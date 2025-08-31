@@ -191,6 +191,7 @@ describe('User Controller', () => {
               id: 1,
               email: 'test@example.com',
               name: 'Test User',
+              score: 0,
             },
           },
         })

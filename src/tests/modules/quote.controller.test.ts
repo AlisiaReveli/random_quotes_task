@@ -38,7 +38,7 @@ jest.mock('../../utils/logger', () => ({
   },
 }))
 
-jest.mock('../../utils/common_methods', () => ({
+jest.mock('../../services/common.service', () => ({
   COOLDOWN_SECONDS: 43200,
   isGuessCorrect: jest.fn(),
   normalize: jest.fn((s: string) => s.trim().toLowerCase()),
@@ -47,13 +47,13 @@ jest.mock('../../utils/common_methods', () => ({
 }))
 
 import { getNextQuote, guessAuthor, getRelatedQuotes } from '../../modules/quotes/quote.controller'
-import { createMockRequest, createMockReply, mockUser, mockQuote } from '../utils/test-helpers'
+import { createMockRequest, createMockReply } from '../utils/test-helpers'
 import { Prioritize } from '../../modules/quotes/quote.schema'
 import prisma from '../../utils/prisma'
 import { redisUtils } from '../../utils/redis'
 import { sendDiscountEmail } from '../../utils/email'
 import { quotesLog } from '../../utils/logger'
-import { notFoundUserCheck, validateQuote, isGuessCorrect } from '../../utils/common_methods'
+import { notFoundUserCheck, validateQuote, isGuessCorrect } from '../../services/common.service'
 
 describe('Quote Controller', () => {
   let mockRequest: any

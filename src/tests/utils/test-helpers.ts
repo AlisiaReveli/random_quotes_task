@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals'
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { createResponse } from '../../utils/response'
+import { createResponse } from '../../services/response.service'
 
 // Mock user for testing
 export const mockUser = {
@@ -26,33 +27,33 @@ export const mockQuote = {
 }
 
 // Mock request object
-export const createMockRequest = (overrides: Partial<FastifyRequest> = {}): Partial<FastifyRequest> => ({
+export const createMockRequest = (overrides: Partial<FastifyRequest> = {}): any => ({
   user: { id: 1, email: 'test@example.com', name: 'Test User' },
   body: {},
   query: {},
   params: {},
   log: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn()
+    info: jest.fn() as any,
+    error: jest.fn() as any,
+    warn: jest.fn() as any,
+    debug: jest.fn() as any
   },
   server: {
-    syncQuotes: jest.fn().mockResolvedValue({ createdCount: 0 })
+    syncQuotes: jest.fn() as any
   },
   jwt: {
-    sign: jest.fn().mockReturnValue('mock-jwt-token')
+    sign: jest.fn().mockReturnValue('mock-jwt-token') as any
   },
   ...overrides
 })
 
 // Mock reply object
-export const createMockReply = (): Partial<FastifyReply> => {
+export const createMockReply = (): any => {
   const reply = {
-    code: jest.fn().mockReturnThis(),
-    send: jest.fn().mockReturnThis(),
-    status: jest.fn().mockReturnThis(),
-    header: jest.fn().mockReturnThis()
+    code: jest.fn().mockReturnThis() as any,
+    send: jest.fn().mockReturnThis() as any,
+    status: jest.fn().mockReturnThis() as any,
+    header: jest.fn().mockReturnThis() as any
   }
   return reply
 }

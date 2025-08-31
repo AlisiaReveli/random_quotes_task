@@ -3,7 +3,7 @@ import { CreateUserInput, LoginUserInput, TopUsersQuery } from './user.schema'
 import bcrypt from 'bcrypt'
 import prisma from '../../utils/prisma'
 import { userLog } from '../../utils/logger'
-import { createResponse } from '../../utils/response'
+import { createResponse } from '../../services/response.service'
 
 const SALT_ROUNDS = 10
 
@@ -73,6 +73,7 @@ export async function login(
 			id: user.id,
 			email: user.email,
 			name: user.name,
+			score: user.score,
 		}
 	}, 'Login successful'))
 }

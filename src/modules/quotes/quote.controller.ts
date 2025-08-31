@@ -2,12 +2,12 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 import { GuessInput } from './quote.schema'
 import prisma from '../../utils/prisma'
 import { redisUtils } from '../../utils/redis'
-import { COOLDOWN_SECONDS, isGuessCorrect, normalize, notFoundUserCheck, validateQuote } from '../../utils/common_methods'
+import { COOLDOWN_SECONDS, isGuessCorrect, normalize, notFoundUserCheck, validateQuote } from '../../services/common.service'
 import { Prioritize, NextQuoteQuery } from './quote.schema'
 import { sendDiscountEmail } from '../../utils/email'
 import { GuessTxResult, AuthorStats } from '../../utils/types'
 import { quotesLog } from '../../utils/logger'
-import { createResponse } from '../../utils/response'
+import { createResponse } from '../../services/response.service'
 export async function getNextQuote(
   req: FastifyRequest<{ Querystring: NextQuoteQuery }>,
   reply: FastifyReply

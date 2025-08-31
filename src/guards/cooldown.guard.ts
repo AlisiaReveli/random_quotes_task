@@ -1,17 +1,24 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import  { redisUtils } from '../utils/redis'
+import { CooldownService } from '../services/cooldown.service'
+
 export async function checkGuessCooldown(req: FastifyRequest, reply: FastifyReply) {
 	try {
 		const userId = Number((req.user as any)?.id)
-		if (!Number.isFinite(userId)) {
-			return reply.code(401).send({ message: 'Invalid user' })
-		}
-		const attemptKey = `${userId}:failed_attempt`
-		const existingAttempt =  await redisUtils.get(attemptKey);
-		if (existingAttempt) {
+		const cooldownResult = await CooldownService.checkGuessCooldown(userId)
+		
+		if (!cooldownResult.allowed) {
+			if (cooldownResult.message === 'Invalid user') {
+				return reply.code(401).send({ message: cooldownResult.message })
+			}
+			
+			if (cooldownResult.message === 'Internal server error') {
+				return reply.code(500).send({ message: cooldownResult.message })
+			}
+			
+			// Cooldown active - return the specific cooldown response format
 			return reply.code(429).send({
 				correct: false,
-				message: 'You already tried guessing. Try again after 12 hours.'
+				message: cooldownResult.message
 			})
 		}
 	} catch (error) {

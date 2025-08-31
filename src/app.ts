@@ -11,6 +11,7 @@ import { checkGuessCooldown } from './guards/cooldown.guard'
 import { log } from './utils/logger'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
+import { setupGraphQL } from './graphql/server'
 
 const app = Fastify({ logger: true })
 app.get('/healthcheck', (req, res) => {
@@ -85,6 +86,8 @@ app.addHook('preHandler', (req, res, next) => {
 	return next()
 })
 
+let schedulerService: SchedulerService
+
 app.decorate('authenticate', authenticate)
 app.decorate('checkGuessCooldown', checkGuessCooldown)
 app.decorate('syncQuotes', async function (this: FastifyInstance) {
@@ -103,13 +106,15 @@ listeners.forEach((signal) => {
 	})
 })
 
-let schedulerService: SchedulerService
-
 async function main() {
 	try {
 		log.info('Starting application')
 		schedulerService = new SchedulerService()
 		log.info('Scheduler service started')
+		
+		await setupGraphQL(app)
+		log.info('GraphQL server setup complete')
+		
 		await app.listen({
 			port: parseInt(process.env.PORT!),
 			host: '0.0.0.0',

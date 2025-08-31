@@ -8,11 +8,12 @@ import { quoteRoutes } from './modules/quotes/quote.route'
 import { quoteSchemas } from './modules/quotes/quote.schema'
 import { SchedulerService } from './jobs/scheduler.service'
 import { checkGuessCooldown } from './guards/cooldown.guard'
-
+import { log } from './utils/logger'
 
 const app = Fastify({ logger: true })
 
 app.get('/healthcheck', (req, res) => {
+	log.info('Health check requested')
 	res.send({ message: 'Success' })
 })
 
@@ -46,13 +47,20 @@ listeners.forEach((signal) => {
 let schedulerService: SchedulerService
 
 async function main() {
-	schedulerService = new SchedulerService()
-	console.log('Scheduler service started')
+	try {
+		log.info('Starting application')
+		schedulerService = new SchedulerService()
+		log.info('Scheduler service started')
+		await app.listen({
+			port: parseInt(process.env.PORT!),
+			host: '0.0.0.0',
+		})
+	} catch (error) {
+		log.error('Application failed to start', error)
+		process.exit(1)
+	}
+	log.info('Application started successfully')
 
-	await app.listen({
-		port: parseInt(process.env.PORT!),
-		host: '0.0.0.0',
-	})
 }
 
 main()

@@ -2,6 +2,8 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 import { CreateUserInput, LoginUserInput, TopUsersQuery } from './user.schema'
 import bcrypt from 'bcrypt'
 import prisma from '../../utils/prisma'
+import { userLog } from '../../utils/logger'
+import { createResponse } from '../../utils/response'
 
 const SALT_ROUNDS = 10
 
@@ -14,7 +16,7 @@ export async function getUsers(req: FastifyRequest, reply: FastifyReply) {
 		},
 	})
 
-	return reply.code(200).send(users)
+	return reply.code(200).send(createResponse.success(users, 'Users retrieved successfully'))
 }
 
 export async function createUser(
@@ -31,9 +33,7 @@ export async function createUser(
 		},
 	})
 	if (user) {
-		return reply.code(401).send({
-			message: 'User already exists with this email',
-		})
+		return reply.code(401).send(createResponse.error('User already exists with this email', 401))
 	}
 
 	try {
@@ -48,9 +48,11 @@ export async function createUser(
 		})
 
 		const { password: _, ...userWithoutPassword } = user
-		return reply.code(201).send(userWithoutPassword)
-	} catch (e) {
-		return reply.code(500).send(e)
+		userLog.info( { user: userWithoutPassword }, 'User created successfully')
+		return reply.code(201).send(createResponse.success(userWithoutPassword, 'User created successfully'))
+	} catch (e:any) {
+		userLog.error('Failed to create user', e)
+		return reply.code(500).send(createResponse.error('Failed to create user', 500))
 	}
 }
 
@@ -63,15 +65,11 @@ export async function login(
 	const { email, password } = req.body
 	const user = await prisma.user.findUnique({ where: { email: email } })
 	if(!user){
-	return reply.code(401).send({
-		message: 'This email is not registered',
-	})
+	return reply.code(401).send(createResponse.error('This email is not registered', 401))
 }
 	const isMatch = user && (await bcrypt.compare(password, user.password))
 	if (!user || !isMatch) {
-		return reply.code(401).send({
-			message: 'Invalid email or password',
-		})
+		return reply.code(401).send(createResponse.error('Invalid email or password', 401))
 	}
 
 	const payload = {
@@ -81,15 +79,14 @@ export async function login(
 	}
 	const token = req.jwt.sign(payload, { expiresIn: process.env.JWT_EXPIRATION })
 
-	return reply.code(200).send({
+	return reply.code(200).send(createResponse.success({
 		accessToken: token,
 		user: {
 			id: user.id,
 			email: user.email,
 			name: user.name,
-		},
-		message: 'Login successful'
-	})
+		}
+	}, 'Login successful'))
 }
 
 export async function getTopUsers(
@@ -114,15 +111,13 @@ export async function getTopUsers(
   
 	  const totalUsers = await prisma.user.count()
   
-	  return reply.code(200).send({
+	  return reply.code(200).send(createResponse.success({
 		users: topUsers,
 		total: totalUsers
-	  })
+	  }, 'Top users retrieved successfully'))
   
 	} catch (error: any) {
 	  req.log.error('Failed to get top users:', error)
-	  return reply.code(500).send({ 
-		message: error.message || 'Internal server error' 
-	  })
+	  return reply.code(500).send(createResponse.error('Internal server error', 500, error.message))
 	}
   }

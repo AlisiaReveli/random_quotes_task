@@ -12,11 +12,14 @@ const guessBodySchema = z.object({
 })
 
 const guessResponseSchema = z.object({
-  correct: z.boolean(),
+  success: z.boolean(),
   message: z.string(),
-  newScore: z.number().int().nonnegative().optional(),
+  data: z.object({
+    correct: z.boolean(),
+    newScore: z.number().int().nonnegative().optional(),
+  }),
+  timestamp: z.string(),
 })
-
 export type GuessInput = z.infer<typeof guessBodySchema>
 
 const nextQuoteQuerySchema = z.object({
@@ -32,15 +35,20 @@ const relatedQuotesParamsSchema = z.object({
 })
 
 const relatedQuotesResponseSchema = z.object({
-  originalQuote: z.object({
-    id: z.number(),
-    content: z.string(),
-    author: z.string()
+  success: z.boolean(),
+  message: z.string(),
+  data: z.object({
+    originalQuote: z.object({
+      id: z.number(),
+      content: z.string(),
+      author: z.string()
+    }),
+    relatedQuotes: z.array(z.object({
+      id: z.number(),
+      content: z.string(),
+    }))
   }),
-  relatedQuotes: z.array(z.object({
-    id: z.number(),
-    content: z.string(),
-  }))
+  timestamp: z.string(),
 })
 
 export type RelatedQuotesParams = z.infer<typeof relatedQuotesParamsSchema>

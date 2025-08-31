@@ -1,12 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { GuessInput } from './quote.schema'
 import prisma from '../../utils/prisma'
-import  { redisUtils } from '../../utils/redis'
+import { redisUtils } from '../../utils/redis'
 import { COOLDOWN_SECONDS, isGuessCorrect, normalize, notFoundUserCheck, validateQuote } from '../../utils/common_methods'
 import { Prioritize, NextQuoteQuery } from './quote.schema'
 import { sendDiscountEmail } from '../../utils/email'
 import { GuessTxResult, AuthorStats } from '../../utils/types'
-
+import { quotesLog } from '../../utils/logger'
+import { createResponse } from '../../utils/response'
 export async function getNextQuote(
   req: FastifyRequest<{ Querystring: NextQuoteQuery }>,
   reply: FastifyReply
@@ -43,10 +44,10 @@ export async function getNextQuote(
   if (!next) {
     const res = await req.server.syncQuotes()
     if (res.createdCount > 0) next = await findNext()
-    if (!next) return reply.code(404).send({ message: 'We ran out of quotes, try again tomorrow' })
+    if (!next) return reply.code(404).send(createResponse.error('We ran out of quotes, try again tomorrow', 404))
   }
 
-  return reply.code(200).send({ data: selectedQuote })
+  return reply.code(200).send(createResponse.success(selectedQuote, 'Quote retrieved successfully'))
 }
 
 async function handleCorrectGuess(userId: number, quoteId: number, author: string): Promise<GuessTxResult> {
@@ -57,11 +58,11 @@ async function handleCorrectGuess(userId: number, quoteId: number, author: strin
     })
 
     const authorStats = (currentUser?.right_guessed_authors as Record<string, AuthorStats> | null) || {}
-    
+
     if (!authorStats[author]) {
       authorStats[author] = { count: 0, email_sent: false }
     }
-    
+
     authorStats[author].count += 1
     const newCount = authorStats[author].count
     const email = currentUser?.email || null
@@ -69,9 +70,9 @@ async function handleCorrectGuess(userId: number, quoteId: number, author: strin
 
     const updatedUser = await tx.user.update({
       where: { id: userId },
-      data: { 
-        score: { increment: 1 }, 
-        right_guessed_authors: authorStats 
+      data: {
+        score: { increment: 1 },
+        right_guessed_authors: authorStats
       },
       select: { score: true },
     })
@@ -88,35 +89,35 @@ async function handleCorrectGuess(userId: number, quoteId: number, author: strin
       create: { userId, quoteId, correct: true },
     })
 
-    return { 
-      user: updatedUser, 
-      newCount, 
-      email, 
-      author, 
-      email_sent_for_author, 
-      authorStats 
+    return {
+      user: updatedUser,
+      newCount,
+      email,
+      author,
+      email_sent_for_author,
+      authorStats
     }
   })
 }
 
 async function handleDiscountEmail(
-  userId: number, 
-  email: string | null, 
-  author: string, 
-  newCount: number, 
+  userId: number,
+  email: string | null,
+  author: string,
+  newCount: number,
   emailAlreadySent: boolean,
   authorStats: Record<string, AuthorStats>,
   logger: any
 ) {
   const shouldSendEmail = newCount >= Number(process.env.EMAIL_THRESHOLD) && email && !emailAlreadySent
-  
+
   if (!shouldSendEmail) {
     return
   }
 
   try {
     await sendDiscountEmail(email, author)
-    
+
     authorStats[author].email_sent = true
     await prisma.user.update({
       where: { id: userId },
@@ -142,8 +143,8 @@ async function handleIncorrectGuess(userId: number, quoteId: number) {
   })
 
   await redisUtils.setWithExpiry(
-    `${userId}:failed_attempt`, 
-    new Date().toISOString(), 
+    `${userId}:failed_attempt`,
+    new Date().toISOString(),
     COOLDOWN_SECONDS
   )
 }
@@ -154,51 +155,50 @@ export async function guessAuthor(
 ) {
   try {
     await notFoundUserCheck(req, reply)
-    
+
     const { quoteId, authorGuess } = req.body
     const userId = Number(req.user?.id)
-    
+
     const quote = await validateQuote(quoteId)
-    
+
     const isCorrect = isGuessCorrect(quote.author, authorGuess)
-    
+
     if (isCorrect) {
-      const { user, newCount, email, author, email_sent_for_author, authorStats } = 
+      quotesLog.info({ userId, quoteId, author: quote.author }, 'User guessed correctly')
+
+      const { user, newCount, email, author, email_sent_for_author, authorStats } =
         await handleCorrectGuess(userId, quoteId, quote.author)
-      
+
       await handleDiscountEmail(
-        userId, 
-        email, 
-        author, 
-        newCount, 
-        email_sent_for_author, 
-        authorStats, 
+        userId,
+        email,
+        author,
+        newCount,
+        email_sent_for_author,
+        authorStats,
         req.log
       )
-      
-      return reply.code(200).send({ 
-        correct: true, 
-        message: 'Correct answer', 
-        newScore: user.score 
-      })
+
+      return reply.code(200).send(createResponse.success({
+        correct: true,
+        newScore: user.score
+      }, 'Correct answer'))
+
     }
-    
+
     await handleIncorrectGuess(userId, quoteId)
-    
-    return reply.code(200).send({ 
-      correct: false, 
-      message: 'Wrong answer, try again tomorrow' 
-    })
-    
+
+    return reply.code(200).send(createResponse.success({
+      correct: false
+    }, 'Wrong answer, try again tomorrow'))
+
   } catch (error: any) {
     if (error.message === 'Quote not found') {
-      return reply.code(404).send({ message: 'Quote not found' })
+      return reply.code(404).send(createResponse.error('Quote not found', 404))
     }
-    
+
     req.log.error('Failed to process guess:', error)
-    return reply.code(500).send({ 
-      message: error.message || 'Unknown error' 
-    })
+    return reply.code(500).send(createResponse.error('Internal server error', 500, error.message))
   }
 }
 
@@ -208,9 +208,9 @@ export async function getRelatedQuotes(
 ) {
   try {
     const quoteId = parseInt(req.params.quoteId, 10)
-    
+
     if (isNaN(quoteId) || quoteId <= 0) {
-      return reply.code(400).send({ message: 'Invalid quote ID' })
+      return reply.code(400).send(createResponse.error('Invalid quote ID', 400))
     }
 
     const originalQuote = await prisma.quote.findUnique({
@@ -219,7 +219,7 @@ export async function getRelatedQuotes(
     })
 
     if (!originalQuote) {
-      return reply.code(404).send({ message: 'Quote not found' })
+      return reply.code(404).send(createResponse.error('Quote not found', 404))
     }
 
     const relatedQuotes = await prisma.quote.findMany({
@@ -232,15 +232,13 @@ export async function getRelatedQuotes(
       orderBy: { id: 'asc' }
     })
 
-    return reply.code(200).send({
+    return reply.code(200).send(createResponse.success({
       originalQuote,
       relatedQuotes
-    })
+    }, 'Related quotes retrieved successfully'))
 
   } catch (error: any) {
     req.log.error('Failed to get related quotes:', error)
-    return reply.code(500).send({ 
-      message: error.message || 'Internal server error' 
-    })
+    return reply.code(500).send(createResponse.error('Internal server error', 500, error.message))
   }
 }

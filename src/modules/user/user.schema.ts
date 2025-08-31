@@ -10,9 +10,14 @@ const createUserSchema = z.object({
 export type CreateUserInput = z.infer<typeof createUserSchema>
 
 const createUserResponseSchema = z.object({
-  id: z.string(),
-  email: z.string(),
-  name: z.string(),
+  success: z.boolean(),
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    email: z.string(),
+    name: z.string(),
+  }),
+  timestamp: z.string(),
 })
 
 const loginSchema = z.object({
@@ -27,7 +32,17 @@ const loginSchema = z.object({
 export type LoginUserInput = z.infer<typeof loginSchema>
 
 const loginResponseSchema = z.object({
-  accessToken: z.string(),
+  success: z.boolean(),
+  message: z.string(),
+  data: z.object({
+    accessToken: z.string(),
+    user: z.object({
+      id: z.number(),
+      email: z.string(),
+      name: z.string(),
+    })
+  }),
+  timestamp: z.string(),
 })
 
 const topUsersQuerySchema = z.object({
@@ -49,8 +64,13 @@ const topUserSchema = z.object({
 })
 
 const topUsersResponseSchema = z.object({
-  users: z.array(topUserSchema),
-  total: z.number()
+  success: z.boolean(),
+  message: z.string(),
+  data: z.object({
+    users: z.array(topUserSchema),
+    total: z.number()
+  }),
+  timestamp: z.string(),
 })
 
 export type TopUsersQuery = z.infer<typeof topUsersQuerySchema>

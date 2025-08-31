@@ -2,7 +2,7 @@
 
 A fun and engaging quotes guessing game where users can test their knowledge of famous quotes and their authors. Built with Node.js, TypeScript, Fastify, and PostgreSQL.
 
-![System Architecture](./images/schema.drawio.png)
+![System Architecture](./images/alisia.drawio.png)
 
 ## 🎮 How to Play
 

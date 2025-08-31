@@ -1,23 +1,20 @@
 import { FastifyInstance } from 'fastify'
 import { guessAuthor, getNextQuote, getRelatedQuotes } from './quote.controller'
-import { $ref } from './quote.schema'
+import { quoteRouteSchemas } from '../../docs/quote.route.schema'
 
 export async function quoteRoutes(app: FastifyInstance) {
   app.post(
     '/guess',
     {
       preHandler: [app.authenticate, app.checkGuessCooldown],
-      schema: {
-        body: $ref('guessBodySchema'),
-        response: { 200: $ref('guessResponseSchema') }
-      }
+      schema: quoteRouteSchemas.guessAuthor
     },
     guessAuthor
   )
   app.get(
     '/next', {
     preHandler: [app.authenticate],
-    schema: { querystring: $ref('nextQuoteQuerySchema') },
+    schema: quoteRouteSchemas.getNextQuote
   },
     getNextQuote
   )
@@ -25,10 +22,7 @@ export async function quoteRoutes(app: FastifyInstance) {
     '/related/:quoteId',
     {
       preHandler: [app.authenticate],
-      schema: {
-        params: $ref('relatedQuotesParamsSchema'),
-        response: { 200: $ref('relatedQuotesResponseSchema') }
-      }
+      schema: quoteRouteSchemas.getRelatedQuotes
     },
     getRelatedQuotes
   )

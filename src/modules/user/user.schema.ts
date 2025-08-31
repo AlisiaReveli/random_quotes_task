@@ -2,9 +2,9 @@ import { z } from 'zod'
 import { buildJsonSchemas } from 'fastify-zod'
 
 const createUserSchema = z.object({
-  email: z.string(),
-  password: z.string().min(6),
-  name: z.string(),
+  email: z.string().email().describe('User email address'),
+  password: z.string().min(6).describe('User password (minimum 6 characters)'),
+  name: z.string().describe('User full name'),
 })
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
@@ -26,8 +26,9 @@ const loginSchema = z.object({
       required_error: 'Email is required',
       invalid_type_error: 'Email must be a string',
     })
-    .email(),
-  password: z.string().min(6),
+    .email()
+    .describe('User email address'),
+  password: z.string().min(6).describe('User password'),
 })
 export type LoginUserInput = z.infer<typeof loginSchema>
 
@@ -46,14 +47,7 @@ const loginResponseSchema = z.object({
 })
 
 const topUsersQuerySchema = z.object({
-  limit: z.string().optional().transform(val => {
-    if (!val) return 10
-    const parsed = parseInt(val, 10)
-    if (isNaN(parsed) || parsed <= 0 || parsed > 100) {
-      throw new Error("limit must be a positive integer between 1 and 100")
-    }
-    return parsed
-  })
+  limit: z.number().min(1).max(100).optional().default(10)
 })
 
 const topUserSchema = z.object({
@@ -84,3 +78,4 @@ export const { schemas: userSchemas, $ref } = buildJsonSchemas({
   topUsersResponseSchema,
   topUserSchema,
 })
+export { topUsersQuerySchema }

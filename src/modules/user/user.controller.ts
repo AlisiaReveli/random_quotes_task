@@ -7,18 +7,6 @@ import { createResponse } from '../../utils/response'
 
 const SALT_ROUNDS = 10
 
-export async function getUsers(req: FastifyRequest, reply: FastifyReply) {
-	const users = await prisma.user.findMany({
-		select: {
-			name: true,
-			id: true,
-			email: true,
-		},
-	})
-
-	return reply.code(200).send(createResponse.success(users, 'Users retrieved successfully'))
-}
-
 export async function createUser(
 	req: FastifyRequest<{
 		Body: CreateUserInput
@@ -94,7 +82,10 @@ export async function getTopUsers(
 	reply: FastifyReply
   ) {
 	try {
-	  const limit = req.query.limit || 10
+		if(isNaN(req.query.limit)){
+			return reply.code(400).send(createResponse.error('Invalid limit', 400))
+		}
+		const limit = Number(req.query.limit) || 10
 	  
 	  const topUsers = await prisma.user.findMany({
 		select: {

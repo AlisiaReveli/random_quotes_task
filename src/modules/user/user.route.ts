@@ -1,36 +1,20 @@
 import { FastifyInstance } from 'fastify'
-import { createUser, getTopUsers, getUsers, login } from './user.controller'
-import { $ref } from './user.schema'
+import { createUser, getTopUsers, login } from './user.controller'
+import { userRouteSchemas } from '../../docs/user.route.schema'
+import { topUsersQuerySchema } from './user.schema'
 
 export async function userRoutes(app: FastifyInstance) {
-	app.get(
-		'/',
-		{
-			preHandler: [app.authenticate],
-		},
-		getUsers
-	)
 	app.post(
 		'/register',
 		{
-			schema: {
-				body: $ref('createUserSchema'),
-				response: {
-					201: $ref('createUserResponseSchema'),
-				},
-			},
+			schema: userRouteSchemas.registerUser
 		},
 		createUser
 	)
 	app.post(
 		'/login',
 		{
-			schema: {
-				body: $ref('loginSchema'),
-				response: {
-					201: $ref('loginResponseSchema'),
-				},
-			},
+			schema: userRouteSchemas.loginUser
 		},
 		login
 	)
@@ -38,10 +22,7 @@ export async function userRoutes(app: FastifyInstance) {
 		'/top',
 		{
 		  preHandler: [app.authenticate],
-		  schema: {
-			querystring: $ref('topUsersQuerySchema'),
-			response: { 200: $ref('topUsersResponseSchema') }
-		  }
+		  schema: userRouteSchemas.getTopUsers
 		},
 		getTopUsers
 	  )

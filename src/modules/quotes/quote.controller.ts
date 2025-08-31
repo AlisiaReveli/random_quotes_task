@@ -39,15 +39,16 @@ export async function getNextQuote(
     select: { id: true, content: true },
   })
   let next = await findNext()
-  const randomIndex = Math.floor(Math.random() * next.length)
-  const selectedQuote = next[randomIndex];
-  if (!next) {
+  if (next.length === 0) {
     const res = await req.server.syncQuotes()
     if (res.createdCount > 0) next = await findNext()
-    if (!next) return reply.code(404).send(createResponse.error('We ran out of quotes, try again tomorrow', 404))
+    if (next.length === 0) return reply.code(404).send(createResponse.error('We ran out of quotes, try again tomorrow', 404))
   }
+  const randomIndex = Math.floor(Math.random() * next.length)
+  const selectedQuote = next[randomIndex];
+  console.log(selectedQuote)
 
-  return reply.code(200).send(createResponse.success(selectedQuote, 'Quote retrieved successfully'))
+  return reply.code(200).send(createResponse.success({ quote: selectedQuote }, 'Quote retrieved successfully'))
 }
 
 async function handleCorrectGuess(userId: number, quoteId: number, author: string): Promise<GuessTxResult> {

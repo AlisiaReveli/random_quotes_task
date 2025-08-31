@@ -7,8 +7,8 @@ export enum Prioritize {
 }
 
 const guessBodySchema = z.object({
-  quoteId: z.number().int().min(1),
-  authorGuess: z.string().min(1),
+  quoteId: z.number().int().min(1).describe('ID of the quote to guess'),
+  authorGuess: z.string().min(1).describe('The author name guessed by the user'),
 })
 
 const guessResponseSchema = z.object({
@@ -23,7 +23,7 @@ const guessResponseSchema = z.object({
 export type GuessInput = z.infer<typeof guessBodySchema>
 
 const nextQuoteQuerySchema = z.object({
-  prioritize: z.nativeEnum(Prioritize).default(Prioritize.wrong),
+  prioritize: z.nativeEnum(Prioritize).default(Prioritize.wrong).describe('Whether to prioritize quotes the user got wrong or correct'),
 })
 
 export type NextQuoteQuery = z.infer<typeof nextQuoteQuerySchema>
@@ -31,7 +31,7 @@ export type NextQuoteQuery = z.infer<typeof nextQuoteQuerySchema>
 const relatedQuotesParamsSchema = z.object({
   quoteId: z.string().transform(val => parseInt(val, 10)).refine(val => !isNaN(val) && val > 0, {
     message: "quoteId must be a positive integer"
-  })
+  }).describe('ID of the quote to find related quotes for')
 })
 
 const relatedQuotesResponseSchema = z.object({

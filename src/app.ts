@@ -9,9 +9,10 @@ import { quoteSchemas } from './modules/quotes/quote.schema'
 import { SchedulerService } from './jobs/scheduler.service'
 import { checkGuessCooldown } from './guards/cooldown.guard'
 import { log } from './utils/logger'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 
 const app = Fastify({ logger: true })
-
 app.get('/healthcheck', (req, res) => {
 	log.info('Health check requested')
 	res.send({ message: 'Success' })
@@ -19,6 +20,64 @@ app.get('/healthcheck', (req, res) => {
 
 for (let schema of [...userSchemas, ...quoteSchemas]) app.addSchema(schema)
 
+app.register(swagger, {
+  openapi: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Random Quotes API',
+      description: 'API for a quotes guessing game where users can guess authors of famous quotes',
+      version: '1.0.0',
+      contact: {
+        name: 'Alisia Reveli',
+        email: 'alisjarevel@gmail.com'
+      }
+    },
+    servers: [
+      {
+        url: `http://localhost:${process.env.PORT || 3000}`,
+        description: 'Development server'
+      }
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      }
+    },
+    tags: [
+      {
+        name: 'Users',
+        description: 'User management and authentication'
+      },
+      {
+        name: 'Quotes',
+        description: 'Quote operations and guessing game'
+      }
+    ]
+  }
+})
+
+// Swagger UI configuration
+app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'full',
+    deepLinking: false
+  },
+  uiHooks: {
+    onRequest: function (request, reply, next) { next() },
+    preHandler: function (request, reply, next) { next() }
+  },
+  staticCSP: true,
+  transformStaticCSP: (header) => header,
+  transformSpecification: (swaggerObject, request, reply) => { return swaggerObject },
+  transformSpecificationClone: true
+})
+
+log.info('Swagger UI registered, accessible at http://localhost:3000/docs')
 app.register(fjwt, { secret: process.env.SECRET! })
 
 app.addHook('preHandler', (req, res, next) => {

@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { createUser, getUsers, login } from './user.controller'
+import { createUser, getTopUsers, getUsers, login } from './user.controller'
 import { $ref } from './user.schema'
 
 export async function userRoutes(app: FastifyInstance) {
@@ -34,5 +34,16 @@ export async function userRoutes(app: FastifyInstance) {
 		},
 		login
 	)
+	app.get(
+		'/top',
+		{
+		  preHandler: [app.authenticate],
+		  schema: {
+			querystring: $ref('topUsersQuerySchema'),
+			response: { 200: $ref('topUsersResponseSchema') }
+		  }
+		},
+		getTopUsers
+	  )
 	app.log.info('user routes registered')
 }

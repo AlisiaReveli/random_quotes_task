@@ -1,5 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
-import { CreateUserInput, LoginUserInput } from './user.schema'
+import { CreateUserInput, LoginUserInput, TopUsersQuery } from './user.schema'
 import bcrypt from 'bcrypt'
 import prisma from '../../utils/prisma'
 
@@ -91,3 +91,38 @@ export async function login(
 		message: 'Login successful'
 	})
 }
+
+export async function getTopUsers(
+	req: FastifyRequest<{ Querystring: TopUsersQuery }>,
+	reply: FastifyReply
+  ) {
+	try {
+	  const limit = req.query.limit || 10
+	  
+	  const topUsers = await prisma.user.findMany({
+		select: {
+		  id: true,
+		  name: true,
+		  email: true,
+		  score: true,
+		},
+		orderBy: {
+		  score: 'desc'
+		},
+		take: limit
+	  })
+  
+	  const totalUsers = await prisma.user.count()
+  
+	  return reply.code(200).send({
+		users: topUsers,
+		total: totalUsers
+	  })
+  
+	} catch (error: any) {
+	  req.log.error('Failed to get top users:', error)
+	  return reply.code(500).send({ 
+		message: error.message || 'Internal server error' 
+	  })
+	}
+  }

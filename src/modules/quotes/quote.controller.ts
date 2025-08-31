@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { GuessInput } from './quote.schema'
 import prisma from '../../utils/prisma'
-import redis, { redisUtils } from '../../utils/redis'
+import  { redisUtils } from '../../utils/redis'
 import { COOLDOWN_SECONDS, isGuessCorrect, normalize, notFoundUserCheck, validateQuote } from '../../utils/common_methods'
 import { Prioritize, NextQuoteQuery } from './quote.schema'
 import { sendDiscountEmail } from '../../utils/email'
@@ -16,6 +16,8 @@ export async function getNextQuote(
   const prioritize = query.prioritize ?? Prioritize.wrong
   const userId = Number(req.user?.id)
   //Result tweaked to make the user choose if they want difficult options or easier ones
+  // For 'correct': prioritize quotes that are generally easier (higher guessed_correct)
+  // For 'wrong': prioritize quotes that are generally harder (higher guessed_false)
   const order = prioritize === 'correct'
     ? { guessed_correct: 'desc' as const }
     : { guessed_false: 'desc' as const }
@@ -29,23 +31,22 @@ export async function getNextQuote(
     where: where
   });
 
-  // Generate random skip value
-  const skip = Math.floor(Math.random() * count);
-
-  const findNext = () => prisma.quote.findFirst({
+  const findNext = () => prisma.quote.findMany({
     where: where,
     orderBy: order,
-    skip: skip,
+    take: 5,
     select: { id: true, content: true },
   })
   let next = await findNext()
+  const randomIndex = Math.floor(Math.random() * next.length)
+  const selectedQuote = next[randomIndex];
   if (!next) {
     const res = await req.server.syncQuotes()
     if (res.createdCount > 0) next = await findNext()
     if (!next) return reply.code(404).send({ message: 'We ran out of quotes, try again tomorrow' })
   }
 
-  return reply.code(200).send({ data: next })
+  return reply.code(200).send({ data: selectedQuote })
 }
 
 async function handleCorrectGuess(userId: number, quoteId: number, author: string): Promise<GuessTxResult> {
@@ -197,6 +198,49 @@ export async function guessAuthor(
     req.log.error('Failed to process guess:', error)
     return reply.code(500).send({ 
       message: error.message || 'Unknown error' 
+    })
+  }
+}
+
+export async function getRelatedQuotes(
+  req: FastifyRequest<{ Params: { quoteId: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const quoteId = parseInt(req.params.quoteId, 10)
+    
+    if (isNaN(quoteId) || quoteId <= 0) {
+      return reply.code(400).send({ message: 'Invalid quote ID' })
+    }
+
+    const originalQuote = await prisma.quote.findUnique({
+      where: { id: quoteId },
+      select: { id: true, content: true, author: true }
+    })
+
+    if (!originalQuote) {
+      return reply.code(404).send({ message: 'Quote not found' })
+    }
+
+    const relatedQuotes = await prisma.quote.findMany({
+      where: {
+        author: originalQuote.author,
+        id: { not: quoteId }
+      },
+      select: { id: true, content: true },
+      take: 10,
+      orderBy: { id: 'asc' }
+    })
+
+    return reply.code(200).send({
+      originalQuote,
+      relatedQuotes
+    })
+
+  } catch (error: any) {
+    req.log.error('Failed to get related quotes:', error)
+    return reply.code(500).send({ 
+      message: error.message || 'Internal server error' 
     })
   }
 }

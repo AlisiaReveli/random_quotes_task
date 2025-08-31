@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import redis from '../utils/redis'
+import  { redisUtils } from '../utils/redis'
 export async function checkGuessCooldown(req: FastifyRequest, reply: FastifyReply) {
 	try {
 		const userId = Number((req.user as any)?.id)
@@ -7,7 +7,7 @@ export async function checkGuessCooldown(req: FastifyRequest, reply: FastifyRepl
 			return reply.code(401).send({ message: 'Invalid user' })
 		}
 		const attemptKey = `${userId}:failed_attempt`
-		const existingAttempt = await redis.get(attemptKey)
+		const existingAttempt =  await redisUtils.get(attemptKey);
 		if (existingAttempt) {
 			return reply.code(429).send({
 				correct: false,

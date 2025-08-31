@@ -10,3 +10,20 @@ export const notFoundUserCheck = async (req: FastifyRequest, reply: FastifyReply
         const exists = await prisma.user.findUnique({ where: { id: userId } })
 	if (!exists) return reply.code(404).send({ message: 'User not found' })
 }
+
+export const validateQuote = async (quoteId: number) => {
+	const quote = await prisma.quote.findUnique({
+	  where: { id: quoteId },
+	  select: { id: true, author: true },
+	})
+	
+	if (!quote) {
+	  throw new Error('Quote not found')
+	}
+	
+	return quote
+  }
+
+ export const isGuessCorrect = (actualAuthor: string, guessedAuthor: string): boolean => {
+	return normalize(actualAuthor) === normalize(guessedAuthor)
+  }

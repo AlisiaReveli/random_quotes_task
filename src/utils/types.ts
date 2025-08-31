@@ -23,3 +23,17 @@ declare module '@fastify/jwt' {
 }
 
 export type SyncResult = { processedCount: number; createdCount: number }
+
+export type AuthorStats = {
+	count: number
+	email_sent: boolean
+  }
+  
+export type GuessTxResult = {
+	user: { score: number }
+	newCount: number
+	email: string | null
+	author: string
+	email_sent_for_author: boolean,
+	authorStats: Record<string, AuthorStats>
+  }

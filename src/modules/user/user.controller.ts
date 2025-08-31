@@ -79,7 +79,7 @@ export async function login(
 		email: user.email,
 		name: user.name,
 	}
-	const token = req.jwt.sign(payload)
+	const token = req.jwt.sign(payload, { expiresIn: process.env.JWT_EXPIRATION })
 
 	return reply.code(200).send({
 		accessToken: token,

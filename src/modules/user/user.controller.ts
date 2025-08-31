@@ -53,10 +53,10 @@ export async function login(
 	const { email, password } = req.body
 	const user = await prisma.user.findUnique({ where: { email: email } })
 	if(!user){
-	return reply.code(401).send(createResponse.error('This email is not registered', 401))
-}
-	const isMatch = user && (await bcrypt.compare(password, user.password))
-	if (!user || !isMatch) {
+		return reply.code(401).send(createResponse.error('This email is not registered', 401))
+	}
+	const isMatch = await bcrypt.compare(password, user.password)
+	if (!isMatch) {
 		return reply.code(401).send(createResponse.error('Invalid email or password', 401))
 	}
 
@@ -82,8 +82,8 @@ export async function getTopUsers(
 	reply: FastifyReply
   ) {
 	try {
-		if(isNaN(req.query.limit)){
-			return reply.code(400).send(createResponse.error('Invalid limit', 400))
+		if(req.query.limit && isNaN(Number(req.query.limit))){
+			return reply.code(400).send(createResponse.error('Limit must be a number', 400))
 		}
 		const limit = Number(req.query.limit) || 10
 	  

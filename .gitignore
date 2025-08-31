@@ -6,3 +6,10 @@ dist
 
 prisma/migrations
 
+.env
+.env.local
+.env.test
+.env.production
+
+*.db
+*.sqlite

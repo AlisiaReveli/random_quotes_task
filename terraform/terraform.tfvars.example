@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+# Database password (make it strong!)
+db_password = "YourStrongPassword123!"
+
+# JWT secret (generate a random string)
+jwt_secret = "your-super-secret-jwt-key-change-this"
+
+smtp_url  = "smtp://your-email-provider:587"
+smtp_from = "no-reply@yourdomain.com"

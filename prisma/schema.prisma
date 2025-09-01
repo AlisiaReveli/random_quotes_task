@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int                @id @default(autoincrement())
+  email                 String             @unique
+  name                  String?
+  password              String
+  score                 Int                @default(0)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  email_sent            Boolean            @default(false)
+  right_guessed_authors Json?
+  attempts              UserQuoteAttempt[]
+}
+
+model Quote {
+  id              Int                @id
+  content         String
+  author          String
+  guessed_correct Int                @default(0)
+  guessed_false   Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  attempts        UserQuoteAttempt[]
+}
+
+model UserQuoteAttempt {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  quoteId   Int
+  correct   Boolean
+  createdAt DateTime @default(now())
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, quoteId], name: "userId_quoteId")
+}

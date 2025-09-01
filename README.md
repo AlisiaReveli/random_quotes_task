@@ -66,15 +66,12 @@ A fun and engaging quotes guessing game where users can test their knowledge of 
    docker-compose up -d
    ```
 
-4. **Run database migrations**
-   ```bash
-   docker-compose exec app npx prisma migrate deploy
-   ```
-
-5. **Access the application**
+4. **Access the application**
    - API: http://localhost:3000
    - API Documentation: http://localhost:3000/docs
    - GraphQL Playground: http://localhost:3000/playground
+
+**Note**: Database migrations run automatically when the container starts. The application will wait for the database to be ready before applying migrations.
 
 ### Option 2: Local Development
 
@@ -317,6 +314,34 @@ The application uses PostgreSQL with the following main entities:
 - Health check endpoint (`/healthcheck`)
 - Request/response logging
 - Error tracking and reporting
+
+## 🔧 Troubleshooting
+
+### Docker Database Issues
+
+If you encounter database errors like "table does not exist":
+
+1. **Reset the Docker environment**:
+   ```bash
+   docker-compose down -v
+   docker-compose up -d
+   ```
+
+2. **Check migration status**:
+   ```bash
+   docker-compose exec app npx prisma migrate status
+   ```
+
+3. **View application logs**:
+   ```bash
+   docker-compose logs -f app
+   ```
+
+### Common Issues
+
+- **Port already in use**: Change the port in `docker-compose.yml` or stop conflicting services
+- **Database connection failed**: Check that PostgreSQL is running and accessible
+- **Migration errors**: The application automatically retries migrations on startup
 
 
 

@@ -40,5 +40,5 @@ USER nodejs
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/healthcheck || exit 1
 
-# Start the application (will run migrations automatically)
+# Start the application with migrations
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
